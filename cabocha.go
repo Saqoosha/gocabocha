@@ -12,21 +12,20 @@ import (
 	"unsafe"
 )
 
-// Chunks returns chunks of target string
-func Chunks(target string) []string {
-	argc := C.int(0)
-	argv := make([]*C.char, 0)
-	for _, a := range []string{
-		os.Args[0],
-		// "-b", "/usr/local/etc/mecabrc",
-		// "-d", "/usr/local/Cellar/mecab/0.996/lib/mecab/dic/ipadic",
-		// "-r", "/usr/local/etc/cabocharc",
-		// "-m", "./lib/cabocha/model/dep.ipa.model",
-		// "-M", "./lib/cabocha/model/chunk.ipa.model",
-		// "-N", "./lib/cabocha/model/ne.ipa.model",
-	} {
-		argv = append(argv, C.CString(a))
-		argc++
+// Cabocha struct
+type Cabocha struct {
+	h *C.cabocha_t
+}
+
+// NewCabocha creates new cabocha instance
+func NewCabocha(options []string) *Cabocha {
+	argc := C.int(1)
+	argv := []*C.char{C.CString(os.Args[0])}
+	if options != nil {
+		for _, o := range options {
+			argv = append(argv, C.CString(o))
+			argc++
+		}
 	}
 	defer func() {
 		for _, s := range argv {
@@ -34,17 +33,25 @@ func Chunks(target string) []string {
 		}
 	}()
 
-	cabocha := C.cabocha_new(argc, (**C.char)(unsafe.Pointer(&argv[0])))
-	if cabocha == nil {
+	h := C.cabocha_new(argc, (**C.char)(unsafe.Pointer(&argv[0])))
+	if h == nil {
 		log.Print("error: cabocha_new failed")
 		return nil
 	}
-	defer C.cabocha_destroy(cabocha)
+	return &Cabocha{h}
+}
 
+// Destroy destroy and cleanup cabocha instance
+func (c *Cabocha) Destroy() {
+	C.cabocha_destroy(c.h)
+}
+
+// Chunks returns chunks of target string
+func (c *Cabocha) Chunks(target string) []string {
 	ctarget := C.CString(target)
 	defer C.free(unsafe.Pointer(ctarget))
 
-	tree := C.cabocha_sparse_totree(cabocha, ctarget)
+	tree := C.cabocha_sparse_totree(c.h, ctarget)
 	size := C.cabocha_tree_token_size(tree)
 
 	runes := []rune(target)
@@ -79,4 +86,11 @@ func Chunks(target string) []string {
 	}
 
 	return chunks
+}
+
+// Chunks returns chunks of target string
+func Chunks(target string) []string {
+	cabocha := NewCabocha(nil)
+	defer cabocha.Destroy()
+	return cabocha.Chunks(target)
 }
