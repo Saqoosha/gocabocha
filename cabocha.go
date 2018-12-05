@@ -55,15 +55,12 @@ func Chunks(target string) []string {
 	for i := 0; i < int(size); i++ {
 		token := C.cabocha_tree_token(tree, C.ulong(i))
 		if token.chunk != nil {
-			log.Println("---")
 			if chunk != "" {
 				chunks = append(chunks, chunk)
 			}
 			chunk = ""
 		}
 		surface := C.GoString(token.surface)
-		log.Printf("trace: %d %+v", i, surface)
-		// chunk += surface
 		for _, s := range []rune(surface) {
 			for s != runes[r] {
 				if chunk == "" {
